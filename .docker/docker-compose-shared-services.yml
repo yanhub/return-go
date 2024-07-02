@@ -1,0 +1,37 @@
+version: "3.7"
+
+services:
+    mongo:
+        image: mongo:6.0.9
+        restart: on-failure
+        container_name: return-go-mongo
+        environment:
+            MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+            MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+            MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+            MONGO_USERNAME: ${MONGO_USERNAME}
+            MONGO_PASSWORD : ${MONGO_PASSWORD}
+
+        volumes:
+            - ./mongo/dump:/tmp/dump
+            - ./mongo/initdb:/docker-entrypoint-initdb.d:ro
+            - mongo_config:/data/configdb
+            - mongo_data:/data/db
+            - mongo_logs:/var/log/mongodb
+        ports:
+            - ${MONGO_PORT}:27017
+        networks:
+            - return_go_network
+        healthcheck:
+            test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+
+networks:
+    return_go_network:
+        external: true
+        name: return_go_network
+
+
+volumes:
+    mongo_config:
+    mongo_data:
+    mongo_logs:

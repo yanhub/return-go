@@ -1,0 +1,22 @@
+version: "3.7"
+
+services:
+    app:
+        user: ${DOCKER_UID:-1000}:${DOCKER_GID:-1000}
+        image: ${DOCKER_SERVER_HOST}/${DOCKER_PROJECT_PATH}/node-dev-${DOCKER_IMAGE_VERSION}
+        restart: on-failure
+        container_name: return-go-backend
+        command: ["yarn", "start:debug"]
+        stdin_open: true
+        volumes:
+            - ./..:/app:delegated
+        ports:
+            - ${WEB_PORT:-3000}:3000
+            - ${DEBUG_PORT:-9229}:9229
+        networks:
+            - return_go_network
+
+networks:
+    return_go_network:
+        external: true
+        name: return_go_network

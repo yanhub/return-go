@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+set -e
+DOCKER_DIR=.docker
+ok () {
+    echo -e "\e[32mdone\e[0m"
+}
+docker_compose_run_app () {
+    docker_compose run --rm --no-deps app "$@"
+}
+##> yarn ##
+docker_compose_run_yarn () {
+    docker_compose_run_app yarn "$@"
+}
+yarn_install () {
+    docker_compose_run_yarn install
+}
+yarn_test () {
+    docker_compose_run_yarn test --detectOpenHandles
+}
+yarn_check () {
+    docker_compose_run_yarn lint
+}
+##< yarn ##
+##> Share services ##
+docker_compose_shared_service () {
+    docker_compose -f docker-compose-shared-services.yml "$@"
+}
+shared_service_start () {
+    docker_compose_shared_service up -d --force-recreate --build
+}
+shared_service_erase () {
+    shared_service_stop
+    docker_compose_shared_service down --volumes --remove-orphans
+}
+shared_service_stop () {
+    docker_compose_shared_service stop
+}
+shared_service_logs () {
+    docker_compose_shared_service -f docker-compose-shared-services.yml logs "$@"
+}
+shared_service_ps () {
+    docker_compose_shared_service ps
+}
+##< Share services ##
+create_docker_compose_env () {
+    local -r override="$1"
+    if [[ $override -eq 0 && -f $DOCKER_DIR/.env ]]; then
+        return 0
+    fi
+    echo -e "\e[32mCreating .docker/.env ... \e[0m"
+    cp "$DOCKER_DIR"/.env.dist "$DOCKER_DIR"/.env
+    if [[ $(id -u) == 0 ]]; then
+    {
+        echo DOCKER_UID=1000;
+        echo DOCKER_GID=1000;
+    } >> "$DOCKER_DIR"/.env
+    else
+    {
+        echo DOCKER_UID="$(id -u)";
+        echo DOCKER_GID="$(id -g)";
+    } >> "$DOCKER_DIR"/.env
+    fi
+    ok
+}
+create_network () {
+    if ! docker network inspect return_go_network &>/dev/null
+    then
+        echo -e "\e[32mCreating network return_go_network ... \e[0m"
+        docker network create return_go_network || true
+        ok
+    fi
+}
+remove_network () {
+    if docker network inspect return_go_network &>/dev/null
+    then
+        echo -e "\e[32mRemove network return_go_network ... \e[0m"
+        docker network rm return_go_network || true
+        ok
+    fi
+}
+docker_compose () {
+    cd "$DOCKER_DIR"
+    docker compose "$@"
+    cd ..
+}
+docker_compose_start () {
+    shared_service_start
+    docker_compose up -d --force-recreate --build
+}
+docker_compose_stop () {
+    docker_compose stop
+    shared_service_stop
+}
+docker_compose_erase () {
+    docker_compose_stop
+    docker_compose rm -fsv
+    remove_network
+}
+docker_build_image () {
+    if [ -f $DOCKER_DIR/.env ]
+    then
+        export $(cat $DOCKER_DIR/.env | grep -v '#' | awk '/=/ {print $1}')
+    fi
+    local -r force="$3"
+    local docker_url="${DOCKER_SERVER_HOST}/${DOCKER_PROJECT_PATH}"
+    local tag_name="$docker_url/$1-$DOCKER_IMAGE_VERSION"
+    echo -e "\e[32mBuild image $tag_name ... \e[0m"
+    [[ $force -eq 1 ]] && nocache="--no-cache" || nocache=""
+    docker build $DOCKER_DIR/$1 \
+        --tag $tag_name \
+        --build-arg DOCKER_SERVER_HOST=$DOCKER_SERVER_HOST \
+        --build-arg DOCKER_PROJECT_PATH=$DOCKER_PROJECT_PATH \
+        --build-arg DOCKER_NODE_VERSION=$DOCKER_NODE_VERSION \
+        --build-arg DOCKER_IMAGE_VERSION=$DOCKER_IMAGE_VERSION \
+        --build-arg DOCKER_UID=$DOCKER_UID \
+        --build-arg DOCKER_GID=$DOCKER_GID \
+        --build-arg NODE_ENV=$NODE_ENV \
+        $nocache
+    ok
+}
+docker_build () {
+    docker_build_image node-base "$1"
+    docker_build_image node-dev "$1"
+}
+
+
+case $1 in
+    start)
+        if [[ ! -f ./.env && -f ./.env.dist ]]; then
+            cp ./.env.dist ./.env
+        fi
+        create_network
+        create_docker_compose_env 0
+        docker_build 0
+        if [[ ! -d ./node_modules ]]; then
+            yarn_install
+        fi
+        docker_compose_start
+        ;;
+    stop)
+        docker_compose_stop
+        remove_network
+        ;;
+    rebuild)
+        docker_build 1
+        ;;
+    restart)
+        docker_compose_stop
+        docker_compose_start
+        ;;
+    logs)
+        docker_compose logs "${@:2}"
+        ;;
+    shared-logs)
+        shared_service_logs "${@:2}"
+        ;;
+    shared-start)
+        create_network
+        shared_service_start
+        ;;
+    shared-stop)
+        shared_service_stop
+        ;;
+    check)
+        yarn_check
+        ;;
+    test)
+        yarn_test
+        ;;
+    exec)
+        docker_compose exec "${@:2}"
+        ;;
+    *)
+        docker_compose_run_app "${@:1}"
+        ;;
+esac

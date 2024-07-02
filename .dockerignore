@@ -1,0 +1,15 @@
+.dockerignore
+.git
+.idea
+
+.pipelines
+.gitignore
+
+node_modules/
+
+run
+.docker/.env
+.docker/**/Dockerfile
+
+ormlogs.log
+yarn-error.log
