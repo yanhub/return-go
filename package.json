@@ -16,7 +16,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand"
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json --forceExit"
   },
   "dependencies": {
     "@nestjs/axios": "^3.0.2",
@@ -81,6 +82,7 @@
       "**/*.(t|j)s"
     ],
     "moduleNameMapper": {
+      "~(.*)$": "<rootDir>/../src/$1",
       "@presentation/(.*)": "<rootDir>/Presentation/$1",
       "@application/(.*)": "<rootDir>/Application/$1",
       "@domain/(.*)": "<rootDir>/Domain/$1",

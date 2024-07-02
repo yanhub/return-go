@@ -1,9 +1,29 @@
 {
-  "moduleFileExtensions": ["js", "json", "ts"],
-  "rootDir": ".",
-  "testEnvironment": "node",
-  "testRegex": ".e2e-spec.ts$",
+  "moduleFileExtensions": [
+    "ts",
+    "tsx",
+    "js",
+    "json"
+  ],
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
-  }
+    "^.+\\.tsx?$": "ts-jest"
+  },
+  "testRegex": "/e2e/.*\\.spec.(ts|tsx|js)$",
+  "collectCoverageFrom": [
+    "src/**/*.{js,jsx,tsx,ts}",
+    "!**/node_modules/**",
+    "!**/vendor/**"
+  ],
+  "coverageReporters": [
+    "json",
+    "lcov"
+  ],
+  "moduleNameMapper": {
+    "~(.*)$": "<rootDir>/../src/$1",
+    "@application/(.*)": "<rootDir>/../src/Application/$1",
+    "@domain/(.*)": "<rootDir>/../src/Domain/$1",
+    "@infrastructure/(.*)": "<rootDir>/../src/Infrastructure/$1",
+    "@presentation/(.*)": "<rootDir>/../src/Presentation/$1"
+  },
+  "testTimeout": 20000
 }
